@@ -4,10 +4,10 @@ void RunGame()
 {
 	GAMEDATA data;                      // Parameters struct
 	STAGES Stage = STAGES::Reset;       // Stage navigator
-	data.maxDim = { pokQty, sides };      // World limits on struct
-	data.txtPos = { 0, 4 };             // Before board text position
-	data.cursor = { 0, 0 };               // Game cursor
-	data.pmptPos = { 0, 15 };             // After board text position
+	data.maxDim = { pokQty, sides };    // World limits on struct
+	data.txtPos = { 0, 4 };				// Before board text position
+	data.cursor = { 0, 0 };             // Game cursor
+	data.pmptPos = { 0, 15 };           // After board text position
 	char keys[inputKeyQty] = { 'w', 'a', 's', 'd', '1', '0' }; // Temporary input 
 	ArraySet(data.input, keys);         // Game controls
 	bool keepPlaying = true;            // Should match stop
@@ -111,7 +111,7 @@ bool SelectPokemons(GAMEDATA& data)
 
 			if (actions == INTER::Quit)
 				return false;
-		} while (data.cursor.Y != 1);
+		} while (data.cursor.Y != data.player);
 		data.pkmn[data.cursor.Y][data.cursor.X].lvl = 2;
 		std::cout << "Choose a name for your Charmeleon: " << std::endl;
 		std::cin >> data.pkmn[data.cursor.Y][data.cursor.X].name;
@@ -124,7 +124,7 @@ bool SelectPokemons(GAMEDATA& data)
 	do
 	{
 		actions = MapNavigation(data);
-	} while (data.cursor.Y != 1);
+	} while (data.cursor.Y != data.player);
 	data.pkmn[data.cursor.Y][data.cursor.X].lvl = 3;
 	std::cout << "Choose a name for your Charizard: " << std::endl;
 	std::cin >> data.pkmn[data.cursor.Y][data.cursor.X].name;
@@ -160,6 +160,7 @@ INTER MapNavigation(GAMEDATA& data)
 				LevelToDrawing(data.pkmn[side][pok].lvl, newPos);
 
 				SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WhiteOnBlack);
+				PrintPokemonStats(data);
 			}
 		}
 
@@ -167,6 +168,27 @@ INTER MapNavigation(GAMEDATA& data)
 	} while (selected == INTER::None);
 
 	return selected;
+}
+
+void PrintPokemonStats(GAMEDATA data)
+{
+	CleanAfterBoard(data.pmptPos);
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.pmptPos);
+
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BlueOnBlack);
+	std::cout << "    Pokemon's Stats:" << std::endl;
+
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WhiteOnBlack);
+	std::cout << "    " << data.pkmn[data.cursor.Y][data.cursor.X].name << std::endl
+		<< "    HP: " << data.pkmn[data.cursor.Y][data.cursor.X].hp << std::endl
+		<< "    Lives: " << data.pkmn[data.cursor.Y][data.cursor.X].lives << std::endl
+		<< "    Level: " << data.pkmn[data.cursor.Y][data.cursor.X].lvl << std::endl;
+
+	for (int attkN = 0; attkN < pkmnAttkQty; attkN++)
+	{
+		std::cout << "    " << data.pkmn[data.cursor.Y][data.cursor.X].att[attkN].name
+			<< " damage: " << data.pkmn[data.cursor.Y][data.cursor.X].att[attkN].damage << std::endl;
+	}
 }
 
 INTER GameInput(GAMEDATA& data)
@@ -235,6 +257,7 @@ bool Fight(GAMEDATA& data)
 	ATTK attkChoice;
 	INTER actions = INTER::None;
 	int attkId;
+	int winner;
 
 	do
 	{
@@ -249,7 +272,16 @@ bool Fight(GAMEDATA& data)
 			return false;
 
 		Defense(data.pkmn[data.cursor.Y][data.cursor.X], attkChoice, attkId);
-	} while (CheckPokemonLeft(data));
+
+		if (data.player == 0)
+			data.player = 1;
+		else
+			data.player = 0;
+
+	} while (CheckPokemonLeft(data, winner));
+
+	system("cls");
+	std::cout << "Player " << winner << " wins!";
 
 	return false;
 }
@@ -266,12 +298,12 @@ ATTK ChooseAttack(GAMEDATA data, int& attkId)
 	do
 	{
 		system("cls");
-		for (int i = 0; i < attkQty; i++)
+		for (int i = 0; i < pkmnAttkQty; i++)
 		{
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BlueOnBlack);
 			std::cout << i + 1 << ": ";
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WhiteOnBlack);
-			std::cout << data.pkmn[data.cursor.Y][data.cursor.X].att[i].name;
+			std::cout << data.pkmn[data.cursor.Y][data.cursor.X].att[i].name << std::endl;
 		}
 
 		key = _getch() - 48;
@@ -322,31 +354,35 @@ void Defense(POKEMON& defender, ATTK attk, int attkId)
 	if ((rand() % 3 + 1) == attkId)
 	{
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RedOnBlack);
-		std::cout << attk.name << " dealt " << attk.damage << "damage!";
+		std::cout << attk.name << " dealt " << attk.damage << " damage!" << std::endl;
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WhiteOnBlack);
+		system("pause");
 
 		defender.DamagePokemon(attk.damage);
 
 		if (defender.hp <= 0)
 			defender.hp = defender.initHp;
-		defender.lives--;
+			defender.lives--;
 	}
 	else
 	{
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), GreenOnBlack);
-		std::cout << attk.name << "No damage was dealt!";
+		std::cout << "No damage was dealt!" << std::endl;
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), WhiteOnBlack);
+		system("pause");
+
 	}
 
-	if (defender.lives < 0)
+	if (defender.lives <= 0)
 	{
 		system("cls");
-		std::cout << defender.name << " has fainted.";
-		defender.DestroyPokemon();
+		std::cout << defender.name << " has fainted." << std::endl;
+		system("pause");
+		defender.Destroy();
 	}
 }
 
-bool CheckPokemonLeft(GAMEDATA& data)
+bool CheckPokemonLeft(GAMEDATA& data, int& winner)
 {
 	bool hasPokemonsP1 = false;
 	bool hasPokemonsP2 = false;
@@ -368,6 +404,11 @@ bool CheckPokemonLeft(GAMEDATA& data)
 			}
 		}
 	}
+	
+	if (!hasPokemonsP1)
+		winner = 2;
+	else if (!hasPokemonsP2)
+		winner = 1;
 
 	return (hasPokemonsP1 && hasPokemonsP2);
 }
@@ -386,20 +427,26 @@ POKEMON CreatePokemon(std::string name, int lvl, int lives, int res, ATTK att[3]
 
 bool PrepPokemon(GAMEDATA& data)
 {
-	struct TOSPEND
+	struct TOKENS
 	{
 		int res = initHPTokens;
 		int lives = initLifeTokens;
+		int attk[pkmnAttkQty]
+		{
+			initAttkTokens[0],
+			initAttkTokens[1],
+			initAttkTokens[2]
+		};
 	};
 
 	int resTmp = 0;
 	int livesTmp = 0;
+	int attkTmp[3]{ 0, 0, 0 };
 
-	TOSPEND toSpend;
+	TOKENS toSpend;
 	INTER actions = INTER::None;
 
 	system("cls");
-
 	do
 	{
 		do
@@ -408,16 +455,18 @@ bool PrepPokemon(GAMEDATA& data)
 			PrintTitle("POKEMON PREP");
 
 			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.txtPos);
-			toSpend.res = CalculateTokens(toSpend.res, data.pkmn, data.player, initHPTokens);
-			std::cout << "HP tokens to spend: " << toSpend.res;
+			toSpend.res = CalculateHPTokens(toSpend.res, data.pkmn, data.player);
+			std::cout << "HP tokens to spend: " << toSpend.res << "           ";
 
 			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.pmptPos);
 			actions = MapNavigation(data);
-		} while (data.cursor.Y != 1);
+			if (actions == INTER::Quit)
+				return false;
+
+		} while (data.cursor.Y != data.player);
 
 		do
 		{
-			std::cout << data.pkmn[data.cursor.Y][data.cursor.X].hp << std::endl;
 			std::cin >> resTmp;
 			CleanAfterBoard(data.pmptPos);
 
@@ -427,17 +476,208 @@ bool PrepPokemon(GAMEDATA& data)
 			}
 		} while (toSpend.res - resTmp < 0 || resTmp < 0);
 		data.pkmn[data.cursor.Y][data.cursor.X].hp = resTmp;
-	} while (toSpend.res != 0);
+		data.pkmn[data.cursor.Y][data.cursor.X].initHp = resTmp;
+		toSpend.res = CalculateHPTokens(toSpend.res, data.pkmn, data.player);
+	} while (toSpend.res != 0 || !IsHPTokenSpreadValid(data));;
+
+	do
+	{
+		do
+		{
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0, 0 });
+			PrintTitle("POKEMON PREP");
+
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.txtPos);
+			toSpend.lives = CalculateLifeTokens(toSpend.lives, data.pkmn, data.player);
+			std::cout << "Lives tokens to spend: " << toSpend.lives << "           ";
+
+			SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.pmptPos);
+			actions = MapNavigation(data);
+			if (actions == INTER::Quit)
+				return false;
+
+		} while (data.cursor.Y != data.player);
+
+		do
+		{
+			std::cin >> livesTmp;
+			CleanAfterBoard(data.pmptPos);
+
+			if (toSpend.res - resTmp < 0)
+			{
+				std::cout << "You don't have that much Lives tokens, try again: ";
+			}
+		} while (toSpend.attk[0] - livesTmp < 0 || livesTmp < 0);
+		data.pkmn[data.cursor.Y][data.cursor.X].lives = livesTmp;
+		toSpend.lives = CalculateLifeTokens(toSpend.res, data.pkmn, data.player);
+	} while (toSpend.lives != 0 || !IsLivesTokenSpreadValid(data));
+
+	for (int attkN = 0; attkN < pkmnAttkQty; attkN++)
+	{
+		do
+		{
+			do
+			{
+				SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0, 0 });
+				PrintTitle("POKEMON PREP");
+
+				SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.txtPos);
+				toSpend.attk[attkN] = CalculateAttackTokens(toSpend.attk[attkN], data.pkmn, data.player, attkN);
+				std::cout << "Attack 1 tokens to spend: " << toSpend.attk[attkN] << "           ";
+
+				SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), data.pmptPos);
+				actions = MapNavigation(data);
+				if (actions == INTER::Quit)
+					return false;
+
+			} while (data.cursor.Y != data.player);
+
+			do
+			{
+				std::cin >> attkTmp[attkN];
+				CleanAfterBoard(data.pmptPos);
+
+				if (toSpend.attk[attkN] - attkTmp[attkN] < 0)
+				{
+					std::cout << "You don't have that much Attack 1 tokens, try again: ";
+				}
+			} while (toSpend.attk[attkN] - attkTmp[attkN] < 0 || attkTmp[attkN] < 0);
+			data.pkmn[data.cursor.Y][data.cursor.X].att[attkN].damage = attkTmp[attkN];
+			toSpend.attk[attkN] = CalculateAttackTokens(toSpend.attk[attkN], data.pkmn, data.player, attkN);
+		} while (toSpend.attk[attkN] != 0 || !IsAttackTokenSpreadValid(data, attkN));
+	}
 
 	return true;
 }
 
-int CalculateTokens(int tokens, POKEMON pkmn[sides][pokQty], int player, int initTokens)
+bool IsHPTokenSpreadValid(GAMEDATA data)
 {
-	tokens = initTokens;
+	const int charmanderQty = 3;
+	const int charmeleonQty = 2;
+
+	int lvl2HPCap = initHPTokens;
+	int lvl1HPCap = initHPTokens;
+
+	for (int i = 0; i < pokQty; i++)
+	{
+		if (data.pkmn[data.player][i].lvl >= 3)
+		{
+			lvl2HPCap = data.pkmn[data.player][i].hp;
+		}
+		else if (data.pkmn[data.player][i].lvl == 2 && data.pkmn[data.player][i].hp < lvl1HPCap)
+		{
+			lvl1HPCap = data.pkmn[data.player][i].hp;
+		}
+	}
+
+	for (int i = 0; i < pokQty; i++)
+	{
+		if (data.pkmn[data.player][i].hp <= 0)
+			return false;
+
+		if (data.pkmn[data.player][i].lvl <= 1 && data.pkmn[data.player][i].hp > lvl1HPCap)
+			return false;
+		else if (data.pkmn[data.player][i].lvl <= 2 && data.pkmn[data.player][i].hp > lvl2HPCap)
+			return false;
+	}
+
+	return true;
+}
+
+bool IsAttackTokenSpreadValid(GAMEDATA data, int attkN)
+{
+	const int charmanderQty = 3;
+	const int charmeleonQty = 2;
+
+	int lvl2AttkCap = initAttkTokens[attkN];
+	int lvl1AttkCap = initAttkTokens[attkN];
+
+	for (int i = 0; i < pokQty; i++)
+	{
+		if (data.pkmn[data.player][i].lvl >= 3)
+		{
+			lvl2AttkCap = data.pkmn[data.player][i].att[attkN].damage;
+		}
+		else if (data.pkmn[data.player][i].lvl == 2 && data.pkmn[data.player][i].att[attkN].damage < lvl1AttkCap)
+		{
+			lvl1AttkCap = data.pkmn[data.player][i].att[attkN].damage;
+		}
+	}
+
+	for (int i = 0; i < pokQty; i++)
+	{
+		if (data.pkmn[data.player][i].att[attkN].damage <= 0)
+			return false;
+
+		if (data.pkmn[data.player][i].lvl <= 1 && data.pkmn[data.player][i].att[attkN].damage > lvl1AttkCap)
+			return false;
+		else if (data.pkmn[data.player][i].lvl <= 2 && data.pkmn[data.player][i].att[attkN].damage > lvl2AttkCap)
+			return false;
+	}
+
+	return true;
+}
+
+bool IsLivesTokenSpreadValid(GAMEDATA data)
+{
+	const int charmanderQty = 3;
+	const int charmeleonQty = 2;
+
+	int lvl2LivesCap = initLifeTokens;
+	int lvl1LivesCap = initLifeTokens;
+
+	for (int i = 0; i < pokQty; i++)
+	{
+		if (data.pkmn[data.player][i].lvl >= 3)
+		{
+			lvl2LivesCap = data.pkmn[data.player][i].lives;
+		}
+		else if (data.pkmn[data.player][i].lvl == 2 && data.pkmn[data.player][i].lives < lvl1LivesCap)
+		{
+			lvl1LivesCap = data.pkmn[data.player][i].lives;
+		}
+	}
+
+	for (int i = 0; i < pokQty; i++)
+	{
+		if (data.pkmn[data.player][i].lives <= 0)
+			return false;
+
+		if (data.pkmn[data.player][i].lvl <= 1 && data.pkmn[data.player][i].lives > lvl1LivesCap)
+			return false;
+		else if (data.pkmn[data.player][i].lvl <= 2 && data.pkmn[data.player][i].lives > lvl2LivesCap)
+			return false;
+	}
+
+	return true;
+}
+
+int CalculateHPTokens(int tokens, POKEMON pkmn[sides][pokQty], int player)
+{
+	tokens = initHPTokens;
 	for (int pokN = 0; pokN < pokQty; pokN++)
 	{
 		tokens -= pkmn[player][pokN].hp;
+	}
+	return tokens;
+}
+
+int CalculateLifeTokens(int tokens, POKEMON pkmn[sides][pokQty], int player)
+{
+	tokens = initLifeTokens;
+	for (int pokN = 0; pokN < pokQty; pokN++)
+	{
+		tokens -= pkmn[player][pokN].lives;
+	}
+	return tokens;
+}
+
+int CalculateAttackTokens(int tokens, POKEMON pkmn[sides][pokQty], int player, int attkN)
+{
+	tokens = initAttkTokens[attkN];
+	for (int pokN = 0; pokN < pokQty; pokN++)
+	{
+		tokens -= pkmn[player][pokN].att[attkN].damage;
 	}
 	return tokens;
 }
@@ -501,6 +741,15 @@ void CleanAfterBoard(COORD pmptPos)
 {
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pmptPos);
 	std::cout << "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
+		<< "                                                                                " << std::endl
 		<< "                                                                                " << std::endl
 		<< "                                                                                " << std::endl
 		<< "                                                                                " << std::endl;
