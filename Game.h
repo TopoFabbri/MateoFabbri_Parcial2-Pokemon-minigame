@@ -41,11 +41,15 @@ struct ATTK
 struct POKEMON
 {
 	std::string name = "'None'";
-	int lvl{};
-	int lives{};
-	int hp{};
-	int initHp{};
-	ATTK att[3]{};
+	int lvl{1};
+	int lives{1};
+	int hp{400};
+	int initHp{400};
+	ATTK att[3]{
+		{"S", 200},
+		{"S", 200},
+		{"S", 200}
+	};
 
 	void Destroy()
 	{
@@ -96,6 +100,7 @@ int CalculateHPTokens(int tokens, POKEMON pkmn[sides][pokQty], int player);
 int CalculateLifeTokens(int tokens, POKEMON pkmn[sides][pokQty], int player);
 int CalculateAttackTokens(int tokens, POKEMON pkmn[sides][pokQty], int player, int attkN);
 void PrintPokemonStats(GAMEDATA data);
+void CpuPokemons(GAMEDATA& data);
 void Defense(POKEMON& defender, ATTK attk, int attkId);
 void ChooseAttackedPkmn(GAMEDATA& data, INTER& actions);
 void ChooseAttackerPkmn(GAMEDATA& data, INTER& actions);

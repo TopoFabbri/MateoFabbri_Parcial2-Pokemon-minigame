@@ -11,6 +11,16 @@ void RunGame()
 	char keys[inputKeyQty] = { 'w', 'a', 's', 'd', '1', '0' }; // Temporary input 
 	ArraySet(data.input, keys);         // Game controls
 	bool keepPlaying = true;            // Should match stop
+	int selection;
+	char ops[10][10]
+	{
+		{' ', ' ', 'S', 'I', 'N', 'G', 'L', 'E', ' ', ' '},
+		{' ', ' ', 'M', 'U', 'L', 'T', 'I', ' ', ' ', ' '},
+	};
+
+	system("cls");
+	MenuNavigator(2, ops, data.input, selection);
+	data.multiplayer = (selection == 1);
 
 	do
 	{
@@ -20,7 +30,7 @@ void RunGame()
 			system("cls");
 			ResetMap(data);
 
-			Stage = STAGES::Selection;
+			Stage = STAGES::Fight;
 
 			break;
 
@@ -37,7 +47,7 @@ void RunGame()
 			}
 			else
 			{
-				// CPU select pokemon
+				CpuPokemons(data);
 			}
 
 			Stage = STAGES::SetPokemons;
@@ -55,7 +65,6 @@ void RunGame()
 			}
 
 			Stage = STAGES::Fight;
-			keepPlaying = Fight(data);
 			break;
 
 		case STAGES::Fight:
@@ -70,6 +79,71 @@ void RunGame()
 			break;
 		}
 	} while (keepPlaying);
+}
+
+void CpuPokemons(GAMEDATA& data)
+{
+	ATTK lvl1Attk[pkmnAttkQty] =
+	{
+		{"Scratch", 50},
+		{"Ember", 75},
+		{"Flamethrower", 100}
+	};
+	ATTK lvl2Attk[pkmnAttkQty] =
+	{
+		{"Scratch", 75},
+		{"Ember", 100},
+		{"Flamethrower", 150}
+	};
+	ATTK lvl3Attk[pkmnAttkQty] =
+	{
+		{"Scratch", 100},
+		{"Ember", 150},
+		{"Flamethrower", 300}
+	};
+
+	for (int pokN = 0; pokN < pokQty; pokN++)
+	{
+		if (pokN < 3)
+		{
+			data.pkmn[1][pokN].lvl = 1;
+			data.pkmn[1][pokN].initHp = 500;
+			data.pkmn[1][pokN].hp = 500;
+			data.pkmn[1][pokN].lives = 1;
+			data.pkmn[1][pokN].name = "Charmander";
+
+			for (int attkN = 0; attkN < pkmnAttkQty; attkN++)
+			{
+				data.pkmn[1][pokN].att[attkN] = lvl1Attk[attkN];
+			}
+		}
+		else if (pokN < 5)
+		{
+			data.pkmn[1][pokN].lvl = 2;
+			data.pkmn[1][pokN].initHp = 1000;
+			data.pkmn[1][pokN].hp = 1000;
+			data.pkmn[1][pokN].lives = 2;
+			data.pkmn[1][pokN].name = "Charmeleon";
+
+			for (int attkN = 0; attkN < pkmnAttkQty; attkN++)
+			{
+				data.pkmn[1][pokN].att[attkN] = lvl2Attk[attkN];
+			}
+		}
+		else
+		{
+			data.pkmn[1][pokN].lvl = 3;
+			data.pkmn[1][pokN].initHp = 1500;
+			data.pkmn[1][pokN].hp = 1500;
+			data.pkmn[1][pokN].lives = 7;
+			data.pkmn[1][pokN].name = "Charizard";
+
+			for (int attkN = 0; attkN < pkmnAttkQty; attkN++)
+			{
+				data.pkmn[1][pokN].att[attkN] = lvl1Attk[attkN];
+			}
+		}
+	}
 }
 
 bool SelectPokemons(GAMEDATA& data)
@@ -261,15 +335,31 @@ bool Fight(GAMEDATA& data)
 
 	do
 	{
-		ChooseAttackerPkmn(data, actions);
-		if (actions == INTER::Quit)
-			return false;
+		if (data.multiplayer || data.player == 0)
+		{
 
-		attkChoice = ChooseAttack(data, attkId);
+			ChooseAttackerPkmn(data, actions);
+			if (actions == INTER::Quit)
+				return false;
 
-		ChooseAttackedPkmn(data, actions);
-		if (actions == INTER::Quit)
-			return false;
+			attkChoice = ChooseAttack(data, attkId);
+
+			ChooseAttackedPkmn(data, actions);
+			if (actions == INTER::Quit)
+				return false;
+		}
+		else
+		{
+			do
+			{
+				attkChoice = data.pkmn[1][(rand() % pokQty)].att[(rand() % pkmnAttkQty)];
+			} while (data.pkmn[1][(rand() % pokQty)].att[(rand() % pkmnAttkQty)].damage <= 0);
+
+			do
+			{
+				data.cursor = { (short)(rand() % pokQty), 0 };
+			} while (data.pkmn[data.cursor.Y][data.cursor.X].lives <= 0);
+		}
 
 		Defense(data.pkmn[data.cursor.Y][data.cursor.X], attkChoice, attkId);
 
@@ -277,7 +367,6 @@ bool Fight(GAMEDATA& data)
 			data.player = 1;
 		else
 			data.player = 0;
-
 	} while (CheckPokemonLeft(data, winner));
 
 	system("cls");
@@ -350,7 +439,8 @@ void ChooseAttackerPkmn(GAMEDATA& data, INTER& actions)
 void Defense(POKEMON& defender, ATTK attk, int attkId)
 {
 	system("cls");
-
+	std::cout << attk.name << "(" << attk.damage << ")" << "-->"
+		<< defender.name << std::endl;
 	if ((rand() % 3 + 1) == attkId)
 	{
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), RedOnBlack);
@@ -361,8 +451,10 @@ void Defense(POKEMON& defender, ATTK attk, int attkId)
 		defender.DamagePokemon(attk.damage);
 
 		if (defender.hp <= 0)
+		{
 			defender.hp = defender.initHp;
 			defender.lives--;
+		}
 	}
 	else
 	{
@@ -404,7 +496,7 @@ bool CheckPokemonLeft(GAMEDATA& data, int& winner)
 			}
 		}
 	}
-	
+
 	if (!hasPokemonsP1)
 		winner = 2;
 	else if (!hasPokemonsP2)
