@@ -52,9 +52,8 @@ void Game()
 			system("cls");
 			PrintTitle("RULES");
 			std::cout << R"(
-Es necesario para el comienzo del juego la creacion de 6 pokemones, teniendo este dos modos, en el MultiPlayer,
-el P2 tendra que crear otros 6. El juego consta
-de una sucesion de ataques y defensas, siendo el perdedor aquel que quede sin pokemons vivos.)";
+
+)";
 			system("pause");
 			Nav = SCENES::Menu;
 			break;

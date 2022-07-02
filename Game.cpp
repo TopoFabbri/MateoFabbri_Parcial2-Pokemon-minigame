@@ -20,7 +20,7 @@ void RunGame()
 
 	system("cls");
 	MenuNavigator(2, ops, data.input, selection);
-	data.multiplayer = (selection == 1);
+	data.multiplayer = (selection != 1);
 
 	do
 	{
